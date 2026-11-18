@@ -5,8 +5,58 @@ trend, retention and cost — from the OpenTelemetry telemetry Claude Code alrea
 
 - No raw-event database: each UTC day is computed **once** from the source and cached in a local
   SQLite file (`~/.skill-ranker/cache.db`). Re-runs and overlapping windows only compute missing days.
-- Source adapters: OTLP JSONL files (now), self-hosted SigNoz (M2), more later.
+- Source adapters: OTLP JSONL files and self-hosted SigNoz; more platforms later.
 - Design and roadmap: [PLAN.md](PLAN.md) · verified field mapping: [docs/telemetry-mapping.md](docs/telemetry-mapping.md)
+
+## Why this exists
+
+Organizations are adopting Claude Code skills quickly. Platform teams write them into org policy,
+project repos ship their own, developers keep personal ones, and plugins add more from
+marketplaces. Each skill is an investment: someone wrote it, reviewed it, and has to keep it
+working as tools and codebases change.
+
+Yet most organizations can't answer basic questions about that investment:
+
+- **Which skills are actually used,** by how many people, and across how many teams?
+- **Did a rollout work?** After shipping an org-wide skill, did teams adopt it, and did they keep using it?
+- **Which skills are failing or getting rejected,** and with what errors?
+- **Which skills are growing, and which are dying** and should be fixed or retired?
+- **What do skills cost?** How much model spend happens while a skill is active?
+
+### Why existing telemetry doesn't answer these questions
+
+Claude Code already sends OpenTelemetry data, but it isn't skill analytics:
+
+- **Skill usage is spread across several event types.** These are `skill_activated`,
+  `tool_result`, `tool_decision`, `user_prompt` and `api_request`, and they have to be joined on
+  `prompt.id` to make sense. A skill typed as `/slash` produces no tool events at all, so
+  counting tool calls misses it.
+- **Names are often hidden.** Unless `OTEL_LOG_TOOL_DETAILS=1` is set, custom skills appear as
+  `custom_skill` and plugin skills as `third-party`. The real name has to be recovered from other
+  events in the same prompt.
+- **Observability dashboards show raw counts, not answers.** Adoption %, retention,
+  week-over-week trend and a fair ranking need a definition and calculation that no dashboard
+  provides out of the box. A fair ranking shouldn't let a skill with 2 successes out of 2 beat
+  one with 950 out of 1,000.
+- **The details are easy to get wrong.** Today's half-finished data makes every skill look like
+  it's declining. Subagents inherit the parent's skill attribution. A backend query API can
+  quietly round cost figures.
+- **Rescanning months of logs for every report is slow and expensive.**
+
+### Constraints
+
+- **Privacy:** no prompts or responses are read, user IDs are stored only as salted hashes, and
+  small teams can't be singled out.
+- **Works with your existing telemetry backend:** SigNoz first, with others to follow, instead of
+  requiring a new data pipeline.
+- **Cheap to rerun:** each day is computed once and cached.
+- **Shareable output:** a report a VP or a team lead can open, not a query only an SRE can write.
+
+### What this project provides
+
+A CLI that turns Claude Code's existing telemetry into a ranked, organization-wide view of skill
+usage, and a single-file HTML report that platform teams can share to decide which skills to
+invest in, fix or retire.
 
 ## Quick start (synthetic data)
 
