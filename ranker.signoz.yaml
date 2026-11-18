@@ -1,0 +1,22 @@
+# skill-usage-ranker — self-hosted SigNoz source
+#   export SIGNOZ_API_KEY=...        (service account with the signoz-viewer role)
+#   export SKILL_RANKER_SALT=...     (stable secret used to hash user IDs)
+#   skill-ranker doctor -c ranker.signoz.yaml   (or: rank -c ranker.signoz.yaml)
+source:
+  type: signoz
+  url: http://localhost:8080          # or env SIGNOZ_URL
+  api_key_env: SIGNOZ_API_KEY
+  service_name: claude-code
+  otlp_endpoint: http://localhost:4318 # optional: lets `doctor` verify the collector accepts data
+  timeout_s: 60
+
+cache:
+  path: ~/.skill-ranker/cache.db
+  settle_hours: 2
+  partial_day_ttl_minutes: 15
+
+salt_env: SKILL_RANKER_SALT
+
+ranking:
+  min_invocations: 5
+  min_users: 2

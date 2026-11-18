@@ -1,0 +1,26 @@
+# skill-usage-ranker configuration
+source:
+  type: otlp-jsonl            # signoz arrives in M2
+  paths: [tests/fixtures/synthetic]
+
+cache:
+  path: ~/.skill-ranker/cache.db
+  settle_hours: 2             # a UTC day is final this long after midnight
+  partial_day_ttl_minutes: 15 # how long today's (incomplete) numbers are reused
+
+salt_env: SKILL_RANKER_SALT   # env var holding the user-ID hashing salt
+
+ranking:
+  min_invocations: 5
+  min_users: 2
+  smoothing_strength: 10
+  min_team_users: 3
+  weights:
+    invocations: 0.25
+    unique_users: 0.20
+    unique_teams: 0.15
+    success_rate: 0.15
+    acceptance_rate: 0.05
+    retention: 0.10
+    trend: 0.05
+    cost_per_invocation: 0.05

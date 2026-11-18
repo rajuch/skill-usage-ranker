@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Skill Usage Report</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f2ee;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #6f6d67; --axis-ink: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --series: #2a78d6; --series-partial: #86b6ef; --track: #cde2fb;
+  --up: #006300; --down: #d03b3b;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #222220;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #a3a197; --axis-ink: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --series: #3987e5; --series-partial: #184f95; --track: #0d366b;
+    --up: #0ca30c; --down: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #222220;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #a3a197; --axis-ink: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --series: #3987e5; --series-partial: #184f95; --track: #0d366b;
+  --up: #0ca30c; --down: #e66767;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--font); }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 32px 24px 64px; }
+header.top { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-bottom: 24px; }
+h1 { font-size: 24px; line-height: 1.25; margin: 0 0 4px; font-weight: 650; letter-spacing: -0.01em; }
+h2 { font-size: 16px; margin: 0 0 4px; font-weight: 650; }
+.sub { color: var(--ink-2); margin: 0; }
+.meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+button.theme { font: inherit; font-size: 12px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+button.theme:hover { background: var(--surface-2); }
+section { margin-top: 32px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+
+/* stat tiles */
+.tiles { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+.tile .label { color: var(--ink-2); font-size: 13px; }
+.tile .value { font-size: 28px; font-weight: 600; line-height: 1.2; margin-top: 4px; }
+.tile.hero .value { font-size: 48px; letter-spacing: -0.02em; }
+.tile .foot { color: var(--muted); font-size: 12px; margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.delta { font-weight: 600; }
+.delta.up { color: var(--up); } .delta.down { color: var(--down); } .delta.flat { color: var(--ink-2); }
+
+/* charts */
+svg { display: block; overflow: visible; }
+.chart-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.chart { width: 100%; min-width: 560px; height: auto; }
+.grid line { stroke: var(--grid); stroke-width: 1; }
+.baseline { stroke: var(--axis); stroke-width: 1; }
+.tick { fill: var(--axis-ink); font-size: 11px; font-variant-numeric: tabular-nums; }
+.col { fill: var(--series); pointer-events: none; }
+.col.partial { fill: var(--series-partial); }
+.hit { fill: transparent; cursor: default; outline: none; }
+.hit:hover + .col, .hit:focus + .col { opacity: 0.8; }
+.spark polyline { fill: none; stroke: var(--series); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.spark circle { fill: var(--series); stroke: var(--surface); stroke-width: 2; }
+.key { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 12px; }
+.key i { width: 10px; height: 10px; border-radius: 2px; background: var(--series-partial); display: inline-block; }
+#tip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); opacity: 0; transition: opacity .08s; }
+#tip strong { display: block; font-size: 14px; }
+#tip span { color: var(--ink-2); }
+
+/* tables */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 8px 10px; text-align: left; white-space: nowrap; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; border-bottom: 1px solid var(--axis); }
+td { border-bottom: 1px solid var(--grid); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.name { font-weight: 600; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.chip { display: inline-block; font-size: 11px; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
+.dim { color: var(--muted); }
+details.tableview { margin-top: 12px; }
+details.tableview summary { cursor: pointer; color: var(--ink-2); font-size: 12px; }
+details.tableview table { margin-top: 8px; }
+
+/* highlights */
+.hl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.hl .card { padding: 16px; }
+.hl ol { margin: 8px 0 0; padding: 0; list-style: none; counter-reset: i; }
+.hl li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid var(--grid); counter-increment: i; min-width: 0; }
+.hl li:first-child { border-top: 0; }
+.hl li .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hl li .n::before { content: counter(i) "  "; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hl li .v { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+
+/* attention */
+.att { list-style: none; margin: 0; padding: 0; }
+.att li { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--grid); align-items: baseline; }
+.att li:first-child { border-top: 0; }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink); }
+.status svg { flex: none; }
+.att .what { min-width: 0; }
+.att .what b { font-weight: 600; }
+.att .what .d { color: var(--ink-2); display: block; overflow-wrap: anywhere; }
+.ok-line { display: flex; gap: 8px; align-items: center; color: var(--ink-2); }
+
+/* meter */
+.meter { display: inline-block; width: 96px; height: 8px; border-radius: 999px; background: var(--track); vertical-align: middle; overflow: hidden; margin-right: 8px; }
+.meter b { display: block; height: 100%; background: var(--series); border-radius: 999px; }
+
+footer { margin-top: 40px; color: var(--muted); font-size: 12px; }
+footer dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 8px 0 0; }
+footer dt { color: var(--ink-2); }
+footer dd { margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  .tiles { grid-template-columns: 1fr 1fr; }
+  .tile.hero { grid-column: 1 / -1; }
+  .hl { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 20px 16px 48px; }
+  .tiles, .hl { grid-template-columns: 1fr; }
+  .tile.hero .value { font-size: 40px; }
+  .att li { grid-template-columns: 1fr; gap: 2px; }
+  .card { padding: 16px; }
+}
+@media print {
+  button.theme { display: none; }
+  .card, .tile { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+{% macro delta(x) -%}
+  {%- if x is none -%}<span class="delta flat">–</span>
+  {%- elif x > 0.005 -%}<span class="delta up">▲ {{ x | signed_pct }}</span>
+  {%- elif x < -0.005 -%}<span class="delta down">▼ {{ x | signed_pct }}</span>
+  {%- else -%}<span class="delta flat">● 0%</span>{%- endif -%}
+{%- endmacro %}
+{% macro spark(values, w=96, h=24) -%}
+  {%- set s = values | sparkline(w, h) -%}
+  {%- if s.points -%}
+  <svg class="spark" width="{{ s.width }}" height="{{ s.height }}" viewBox="0 0 {{ s.width }} {{ s.height }}" role="img" aria-label="Daily uses: {{ values | join(', ') }}"><polyline points="{{ s.points }}"/><circle cx="{{ '%.1f' % s.end[0] }}" cy="{{ '%.1f' % s.end[1] }}" r="3"/></svg>
+  {%- else -%}<span class="dim">–</span>{%- endif -%}
+{%- endmacro %}
+{% macro status_icon(sev) -%}
+  {%- if sev == "critical" -%}
+  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6.5" fill="var(--critical)"/><path d="M4.5 4.5l5 5M9.5 4.5l-5 5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+  {%- elif sev == "serious" -%}
+  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--serious)"/><path d="M7 3.8v4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="7" cy="10.2" r="0.95" fill="#fff"/></svg>
+  {%- elif sev == "warning" -%}
+  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1.2L13.2 12.4H.8z" fill="var(--warning)" stroke-linejoin="round"/><path d="M7 5.2v3.4" stroke="#0b0b0b" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="10.4" r="0.85" fill="#0b0b0b"/></svg>
+  {%- else -%}
+  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6.5" fill="var(--good)"/><path d="M4 7.2l2 2 4-4.4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  {%- endif -%}
+{%- endmacro %}
+{% set s = r.summary %}
+{% set q = r.quality %}
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>{{ r.title }}</h1>
+      <p class="sub">{{ r.window.start.strftime('%b %d, %Y') }} – {{ r.window.end.strftime('%b %d, %Y') }} (UTC) · {{ q.days }} days{% if r.team %} · team <b>{{ r.team }}</b>{% else %} · whole organization{% endif %}</p>
+      <p class="meta">Generated {{ r.generated_at.strftime('%Y-%m-%d %H:%M') }} UTC</p>
+    </div>
+    <button class="theme" type="button" id="theme" aria-label="Toggle color theme">Theme: auto</button>
+  </header>
+
+  <!-- 1. Executive summary -->
+  <div class="tiles">
+    <div class="tile hero">
+      <div class="label">Skill invocations</div>
+      <div class="value">{{ s.invocations | compact }}</div>
+      <div class="foot">
+        {{ delta(s.trend) }}<span>last {{ s.trend_span_days }} days vs previous {{ s.trend_span_days }}</span>
+        {{ spark(r.daily | selectattr('complete') | map(attribute='invocations') | list, 120, 24) }}
+      </div>
+    </div>
+    <div class="tile">
+      <div class="label">Skill adoption</div>
+      <div class="value">{{ s.adoption | pct }}</div>
+      <div class="foot">{{ s.skill_users | compact }} of {{ s.active_users | compact }} Claude Code users</div>
+    </div>
+    <div class="tile">
+      <div class="label">Skills in use</div>
+      <div class="value">{{ s.skills_used | compact }}</div>
+      <div class="foot">{{ r.leaderboard | length }} ranked · {{ s.slash_share | pct }} invoked via /slash</div>
+    </div>
+    <div class="tile">
+      <div class="label">Cost while a skill was active</div>
+      <div class="value">{{ s.skill_cost_share | pct }}</div>
+      <div class="foot">{{ s.skill_cost | money }} of {{ s.total_cost | money }} total</div>
+    </div>
+  </div>
+
+  <!-- 2. Daily usage -->
+  <section class="card" aria-labelledby="daily-h">
+    <div class="section-head">
+      <div><h2 id="daily-h">Skill invocations per day</h2><p class="hint">All skills{% if r.team %}, team {{ r.team }}{% endif %} · UTC days</p></div>
+      {% if q.incomplete_days %}<span class="key"><i></i>Day still in progress</span>{% endif %}
+    </div>
+    <div class="chart-wrap"><svg class="chart" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="Column chart of daily skill invocations; values in the table below">
+      <g class="grid">{% for t in chart.yticks %}{% if not loop.first %}<line x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ '%.1f' % t.y }}" y2="{{ '%.1f' % t.y }}"/>{% endif %}{% endfor %}</g>
+      {% for t in chart.yticks %}<text class="tick" x="{{ chart.left - 8 }}" y="{{ '%.1f' % (t.y + 4) }}" text-anchor="end">{{ t.text }}</text>{% endfor %}
+      {% for b in chart.bars %}
+      <rect class="hit" x="{{ '%.1f' % b.hit_x }}" y="{{ chart.top }}" width="{{ '%.1f' % b.hit_w }}" height="{{ chart.base - chart.top }}" tabindex="0" data-tip-value="{{ b.value | compact }} invocations" data-tip-label="{{ b.label }}{% if not b.complete %} · in progress{% endif %}" aria-label="{{ b.label }}: {{ b.value }} invocations{% if not b.complete %}, day in progress{% endif %}"/>
+      {% if b.path %}<path class="col{% if not b.complete %} partial{% endif %}" d="{{ b.path }}"/>{% else %}<g></g>{% endif %}
+      {% endfor %}
+      <line class="baseline" x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ chart.base }}" y2="{{ chart.base }}"/>
+      {% for l in chart.xlabels %}<text class="tick" x="{{ '%.1f' % l.x }}" y="{{ chart.base + 18 }}" text-anchor="middle">{{ l.text }}</text>{% endfor %}
+    </svg></div>
+    <details class="tableview"><summary>Show as table</summary>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Day (UTC)</th><th class="num">Invocations</th><th>Status</th></tr></thead>
+        <tbody>{% for p in r.daily %}<tr><td>{{ p.day.isoformat() }}</td><td class="num">{{ '{:,}'.format(p.invocations) }}</td><td class="dim">{{ 'complete' if p.complete else 'in progress' }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </details>
+  </section>
+
+  <!-- 3. Leaderboard -->
+  <section class="card" aria-labelledby="lb-h">
+    <div class="section-head">
+      <div><h2 id="lb-h">Leaderboard</h2><p class="hint">Composite score: adoption across users and teams, usage, success, retention and trend, minus cost per use. Minimum {{ q.min_invocations }} uses and {{ q.min_users }} users.</p></div>
+    </div>
+    {% if r.leaderboard %}
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th class="num">#</th><th>Skill</th><th>Source</th><th class="num">Score</th><th class="num">Uses</th>
+        <th class="num">Users</th><th class="num">Teams</th><th class="num">Success</th><th class="num">p95</th>
+        <th class="num">Trend</th><th class="num">Retention</th><th class="num">Cost</th><th>Daily uses</th>
+      </tr></thead>
+      <tbody>
+      {% for row in r.leaderboard %}{% set k = row.stats %}
+        <tr>
+          <td class="num dim">{{ row.rank }}</td>
+          <td class="name" title="{{ k.skill_name }}">{{ k.skill_name }}</td>
+          <td><span class="chip">{{ k.skill_source | source_label }}</span></td>
+          <td class="num">{{ '%.2f' % k.score }}</td>
+          <td class="num">{{ k.invocations | compact }}{% if k.slash_invocations %} <span class="dim">({{ k.slash_invocations | compact }} /)</span>{% endif %}</td>
+          <td class="num">{{ k.unique_users | compact }}</td>
+          <td class="num">{{ k.unique_teams }}</td>
+          <td class="num">{{ k.success_rate | pct }}</td>
+          <td class="num">{{ k.p95_duration_ms | ms }}</td>
+          <td class="num">{{ delta(k.trend) }}</td>
+          <td class="num">{{ k.retention | pct }}</td>
+          <td class="num">{{ k.cost_usd | money }}</td>
+          <td>{{ spark(row.spark) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="empty">No skill reached the minimum support threshold in this window.</p>{% endif %}
+  </section>
+
+  <!-- 4. Highlights -->
+  <section aria-labelledby="hl-h">
+    <h2 id="hl-h" style="margin-bottom:12px">Highlights</h2>
+    <div class="hl">
+      {% for key, title, fmt in [('adopted', 'Most adopted', 'teams'), ('growing', 'Fastest growing', 'trend'), ('reliable', 'Most reliable', 'success'), ('expensive', 'Most expensive', 'cost')] %}
+      <div class="card"><h2>{{ title }}</h2>
+        {% if r.highlights[key] %}<ol>
+          {% for row in r.highlights[key] %}{% set k = row.stats %}
+          <li><span class="n" title="{{ k.skill_name }}">{{ k.skill_name }}</span><span class="v">
+            {%- if fmt == 'teams' %}{{ k.unique_users | compact }} users
+            {%- elif fmt == 'trend' %}{{ k.trend | signed_pct }}
+            {%- elif fmt == 'success' %}{{ k.success_rate | pct(1) }}
+            {%- else %}{{ k.cost_usd | money }}{% endif %}</span></li>
+          {% endfor %}
+        </ol>{% else %}<p class="empty">Nothing to show yet.</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- 5. Needs attention -->
+  <section class="card" aria-labelledby="att-h">
+    <div class="section-head"><div><h2 id="att-h">Needs attention</h2><p class="hint">Low success rates, declining use, frequent rejections, low retention</p></div></div>
+    {% if r.attention %}
+    <ul class="att">
+      {% for a in r.attention %}
+      <li><span class="status">{{ status_icon(a.severity) }}{{ a.severity | capitalize }}</span>
+        <span class="what"><b>{{ a.skill }}</b> — {{ a.reason }}<span class="d">{{ a.detail }}</span></span></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="ok-line">{{ status_icon('good') }} No skills need attention in this window.</p>{% endif %}
+  </section>
+
+  <!-- 6. Teams -->
+  {% if not r.team %}
+  <section class="card" aria-labelledby="teams-h">
+    <div class="section-head"><div><h2 id="teams-h">Teams</h2><p class="hint">Adoption = Claude Code users on the team who used at least one skill. Teams with fewer than {{ q.min_team_users }} users are grouped for privacy.</p></div></div>
+    {% if r.teams %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Team</th><th>Adoption</th><th class="num">Skill users / all</th><th class="num">Skill uses</th><th class="num">Uses / prompt</th><th>Top skills</th></tr></thead>
+      <tbody>
+      {% for t in r.teams %}
+        <tr>
+          <td class="name">{{ t.team }}{% if t.is_rollup %} <span class="dim">({{ t.teams_in_rollup }} teams)</span>{% endif %}</td>
+          <td><span class="meter" aria-hidden="true"><b style="width: {{ '%.1f' % ((t.adoption or 0) * 100) }}%"></b></span>{{ t.adoption | pct }}</td>
+          <td class="num">{{ t.skill_users }} / {{ t.active_users }}</td>
+          <td class="num">{{ t.invocations | compact }}</td>
+          <td class="num">{{ (t.invocations / t.prompts) | pct if t.prompts else '–' }}</td>
+          <td>{% for name, n in t.top_skills %}{{ name }} <span class="dim">{{ n | compact }}</span>{% if not loop.last %} · {% endif %}{% endfor %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="empty">No team-attributed usage. Set <code>team.id</code> in OTEL_RESOURCE_ATTRIBUTES.</p>{% endif %}
+  </section>
+  {% endif %}
+
+  <!-- 7. By source -->
+  <section class="card" aria-labelledby="src-h">
+    <div class="section-head"><div><h2 id="src-h">Where skills come from</h2><p class="hint">Built-in, org policy, project, personal and plugin skills</p></div></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Source</th><th class="num">Skills</th><th class="num">Uses</th><th>Share of uses</th></tr></thead>
+      <tbody>{% for x in r.sources %}
+        <tr><td>{{ x.source | source_label }}</td><td class="num">{{ x.skills }}</td><td class="num">{{ x.invocations | compact }}</td>
+        <td><span class="meter" aria-hidden="true"><b style="width: {{ '%.1f' % (x.share * 100) }}%"></b></span>{{ x.share | pct }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  </section>
+
+  <!-- 8. Data quality -->
+  <footer>
+    <h2 style="color: var(--ink-2); font-size: 13px">Data quality and method</h2>
+    <dl>
+      <dt>Source</dt><dd>{{ r.source_id }}</dd>
+      <dt>Days</dt><dd>{{ q.days }} in window · {{ q.days_from_cache }} from local cache · {{ q.days_computed }} computed this run{% if q.incomplete_days %} · {{ q.incomplete_days | length }} still in progress (excluded from trend and retention){% endif %}</dd>
+      <dt>Skill names</dt><dd>{% if q.unresolved_names %}{{ q.unresolved_names }} invocations ({{ q.unresolved_share | pct(1) }}) have redacted names — set OTEL_LOG_TOOL_DETAILS=1 for exact custom and plugin skill names{% else %}All invocations have resolved skill names{% endif %}</dd>
+      <dt>Below threshold</dt><dd>{% if q.below_threshold %}{{ q.below_threshold | length }} skills not ranked: {{ q.below_threshold | join(', ') }}{% else %}None{% endif %}</dd>
+      <dt>Privacy</dt><dd>User identifiers are salted hashes; no prompts or responses are read. {% if q.hidden_teams %}{{ q.hidden_teams }} small teams grouped or hidden.{% endif %}</dd>
+      <dt>Definitions</dt><dd>Invocation = one skill activation (model-chosen or /slash). Success = Skill tool completed without error. Trend = last {{ s.trend_span_days }} complete days vs the {{ s.trend_span_days }} before. Retention = share of the previous period's users who used the skill again. Cost = model spend while the skill was active.</dd>
+    </dl>
+  </footer>
+</div>
+<div id="tip" role="status" aria-live="polite"><strong></strong><span></span></div>
+<script>
+(function () {
+  var root = document.documentElement, btn = document.getElementById('theme');
+  var modes = ['auto', 'light', 'dark'], mode = root.getAttribute('data-theme') || 'auto';
+  try { mode = localStorage.getItem('skill-report-theme') || mode; } catch (e) {}
+  function apply() {
+    if (mode === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', mode);
+    btn.textContent = 'Theme: ' + mode;
+  }
+  btn.addEventListener('click', function () {
+    mode = modes[(modes.indexOf(mode) + 1) % modes.length];
+    try { localStorage.setItem('skill-report-theme', mode); } catch (e) {}
+    apply();
+  });
+  apply();
+
+  var tip = document.getElementById('tip'), tv = tip.querySelector('strong'), tl = tip.querySelector('span');
+  function show(el, x, y) {
+    tv.textContent = el.getAttribute('data-tip-value');
+    tl.textContent = el.getAttribute('data-tip-label');
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    var left = Math.min(Math.max(8, x - w / 2), window.innerWidth - w - 8);
+    var top = y - h - 12; if (top < 8) top = y + 16;
+    tip.style.left = left + 'px'; tip.style.top = top + 'px'; tip.style.opacity = 1;
+  }
+  function hide() { tip.style.opacity = 0; }
+  document.querySelectorAll('[data-tip-value]').forEach(function (el) {
+    el.addEventListener('pointermove', function (e) { show(el, e.clientX, e.clientY); });
+    el.addEventListener('pointerleave', hide);
+    el.addEventListener('focus', function () { var b = el.getBoundingClientRect(); show(el, b.left + b.width / 2, b.top + 20); });
+    el.addEventListener('blur', hide);
+  });
+})();
+</script>
+</body>
+</html>

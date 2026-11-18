@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+*.db
+reports/
+deploy/.bin/
+deploy/signoz/docker/data/
+tests/fixtures/raw/
+deploy/signoz/.local-admin.env
+tests/fixtures/synthetic/
+*.egg-info/
+.pytest_cache/
+deploy/signoz/.api-key.env
